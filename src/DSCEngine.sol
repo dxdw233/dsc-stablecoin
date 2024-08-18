@@ -157,7 +157,6 @@ contract DSCEngine is ReentrancyGuard {
 
     function redeemCollateral() external {}
 
-    // 1. Check if there is enough collateral to mint DSC (require to get the usd value of the collateral)
     /**
      * @notice User must have more collateral value than the minimum threshold
      * @param amountDscToMint The amount of DSC to mint
@@ -175,6 +174,10 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
+    /**
+     * @notice Burn DSC
+     * @param amountDscToBurn The amount of DSC to burn
+     */
     function burnDsc(uint256 amountDscToBurn) external moreThanZero(amountDscToBurn) nonReentrant {
         if (s_DSCMinted[msg.sender] < amountDscToBurn || i_dsc.balanceOf(msg.sender) < amountDscToBurn) {
             revert DSCEngine__DSCNotEnough();
