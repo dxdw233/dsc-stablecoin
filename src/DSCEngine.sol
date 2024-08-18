@@ -66,6 +66,7 @@ contract DSCEngine is ReentrancyGuard {
 
     event collateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
     event DSCMinted(address indexed user, uint256 amount);
+    event DSCBruned(address user, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -77,6 +78,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__BreaksHealthFactor(uint256 healthFactor);
     error DSCEngine__TransferFailed();
     error DSCEngine__MintFailed();
+    error DSCEngine__DSCNotEnough();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -162,7 +164,7 @@ contract DSCEngine is ReentrancyGuard {
      * @dev This function should only be called by the DSC contract
      */
     function mintDsc(uint256 amountDscToMint) public moreThanZero(amountDscToMint) nonReentrant {
-        if (getAccountMinted(msg.sender) != 0) {
+        if (s_DSCMinted[msg.sender] != 0) {
             _revertIfHealthFactorBroken(msg.sender);
         }
         s_DSCMinted[msg.sender] += amountDscToMint;
@@ -173,7 +175,15 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    function burnDsc() external {}
+    function burnDsc(uint256 amountDscToBurn) external moreThanZero(amountDscToBurn) nonReentrant {
+        if (s_DSCMinted[msg.sender] < amountDscToBurn || i_dsc.balanceOf(msg.sender) < amountDscToBurn) {
+            revert DSCEngine__DSCNotEnough();
+        }
+        s_DSCMinted[msg.sender] -= amountDscToBurn;
+        emit DSCBruned(msg.sender, amountDscToBurn);
+        i_dsc.approve(msg.sender, amountDscToBurn);
+        i_dsc.burnFrom(msg.sender, amountDscToBurn);
+    }
 
     function liquidate() external {}
 
