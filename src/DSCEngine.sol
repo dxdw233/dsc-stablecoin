@@ -65,6 +65,7 @@ contract DSCEngine is ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     event collateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
+    event DSCMinted(address indexed user, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -118,7 +119,18 @@ contract DSCEngine is ReentrancyGuard {
                            EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function depositCollateralAndMintDsc() external {}
+    /**
+     * @notice Deposit collateral and mint DSC in one transaction
+     * @param tokenCollateralAddress The address of collateral token contract
+     * @param amountCollateral The amount of collateral token to deposit
+     * @param amountToMint The amount of DSC to mint
+     */
+    function depositCollateralAndMintDsc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountToMint)
+        external
+    {
+        depositCollateral(tokenCollateralAddress, amountCollateral);
+        mintDsc(amountToMint);
+    }
 
     /**
      * @notice follows CEI pattern
@@ -126,7 +138,7 @@ contract DSCEngine is ReentrancyGuard {
      * @param amountCollateral The amount of the token to deposit as collateral
      */
     function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
-        external
+        public
         moreThanZero(amountCollateral)
         isAllowedToken(tokenCollateralAddress)
         nonReentrant
@@ -149,9 +161,12 @@ contract DSCEngine is ReentrancyGuard {
      * @param amountDscToMint The amount of DSC to mint
      * @dev This function should only be called by the DSC contract
      */
-    function mindDsc(uint256 amountDscToMint) external moreThanZero(amountDscToMint) nonReentrant {
-        _revertIfHealthFactorBroken(msg.sender);
+    function mintDsc(uint256 amountDscToMint) public moreThanZero(amountDscToMint) nonReentrant {
+        if (getAccountMinted(msg.sender) != 0) {
+            _revertIfHealthFactorBroken(msg.sender);
+        }
         s_DSCMinted[msg.sender] += amountDscToMint;
+        emit DSCMinted(msg.sender, amountDscToMint);
         bool minted = i_dsc.mint(msg.sender, amountDscToMint);
         if (!minted) {
             revert DSCEngine__MintFailed();
@@ -233,5 +248,13 @@ contract DSCEngine is ReentrancyGuard {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeed[token]);
         (, int256 price,,,) = priceFeed.latestRoundData();
         return (uint256(price) * ADDITIONAL_FEED_PRECISION * amount) / PRECISION;
+    }
+
+    /**
+     * @notice Get total DSC user has minted
+     * @param user The address of user
+     */
+    function getAccountMinted(address user) public view returns (uint256) {
+        return s_DSCMinted[user];
     }
 }
