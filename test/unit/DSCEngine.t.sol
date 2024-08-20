@@ -20,6 +20,7 @@ contract DSCEngineTest is Test {
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
     uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
     uint256 public constant ETH_VALUE_IN_USD = 2000;
+    uint256 public constant AMOUNT_MINTED_DSC = 10;
 
     function setUp() public {
         deployer = new DeployDSC();
@@ -65,8 +66,7 @@ contract DSCEngineTest is Test {
     function testDepositAndMint() public {
         vm.startPrank(USER);
         ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
-
-        dsce.depositCollateralAndMintDsc(weth, AMOUNT_COLLATERAL, 5);
+        dsce.depositCollateralAndMintDsc(weth, AMOUNT_COLLATERAL, AMOUNT_MINTED_DSC);
         uint256 expectedDeposited = AMOUNT_COLLATERAL * ETH_VALUE_IN_USD;
         uint256 expectedMinted = 5;
 
@@ -79,5 +79,32 @@ contract DSCEngineTest is Test {
 
         assertEq(expectedDeposited, actualDeposited);
         assertEq(expectedMinted, actualMinted);
+    }
+
+    function testRedeemWhenUserHasNotDscMinted() public {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
+        dsce.redeemCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+
+        uint256 expectedBalance = 10 ether;
+        uint256 actualBalance = ERC20Mock(weth).balanceOf(USER);
+
+        assertEq(expectedBalance, actualBalance);
+    }
+
+    function testBurnDsc() public {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateralAndMintDsc(weth, AMOUNT_COLLATERAL, AMOUNT_MINTED_DSC);
+        console.log(dsc.balanceOf(USER));
+        dsce.burnDsc(AMOUNT_MINTED_DSC);
+        vm.stopPrank();
+
+        uint256 expectedBalance = 0;
+        uint256 actualBalance = dsc.balanceOf(USER);
+
+        assertEq(expectedBalance, actualBalance);
     }
 }
