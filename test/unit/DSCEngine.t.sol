@@ -68,7 +68,7 @@ contract DSCEngineTest is Test {
         ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
         dsce.depositCollateralAndMintDsc(weth, AMOUNT_COLLATERAL, AMOUNT_MINTED_DSC);
         uint256 expectedDeposited = AMOUNT_COLLATERAL * ETH_VALUE_IN_USD;
-        uint256 expectedMinted = 5;
+        uint256 expectedMinted = 10;
 
         uint256 actualDeposited = dsce.getAccountCollateralValueInUsd(USER);
         uint256 actualMinted = dsce.getAccountMinted(USER);
