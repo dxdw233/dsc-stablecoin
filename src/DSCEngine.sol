@@ -45,6 +45,9 @@ contract DSCEngine is ReentrancyGuard {
     /// @notice The minimum health factor
     uint256 private constant MIN_HEALTH_FACTOR = 1;
 
+    /// @notice The liquidation bonus
+    uint256 private constant LIQUIDATION_BONUS = 10;
+
     /// @notice Mapping of token address to price feed address
     mapping(address token => address priceFeed) private s_priceFeed;
 
@@ -80,6 +83,7 @@ contract DSCEngine is ReentrancyGuard {
     error DSCEngine__TransferFailed();
     error DSCEngine__MintFailed();
     error DSCEngine__DSCNotEnough();
+    error DSCEngine__HealthFactorOk();
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -222,7 +226,21 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    function liquidate() external {}
+    function liquidate(address collateralAddress, address user, uint256 debtToCover)
+        external
+        moreThanZero(debtToCover)
+        nonReentrant
+    {
+        uint256 startingUserHealthFactor = _healthFactor(user);
+        if (startingUserHealthFactor >= MIN_HEALTH_FACTOR) {
+            revert DSCEngine__HealthFactorOk();
+        }
+        uint256 tokenAmountFromDebtCovered = getTokenAmountFromUsd(collateralAddress, debtToCover);
+        uint256 bonusCollateral = (tokenAmountFromDebtCovered * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
+        uint256 totalCollateralToRedeem = tokenAmountFromDebtCovered + bonusCollateral;
+        burnDsc(debtToCover);
+        redeemCollateral(collateralAddress, totalCollateralToRedeem);
+    }
 
     function getHealthFactor(address user) external view {}
 
